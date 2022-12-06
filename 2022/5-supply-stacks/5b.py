@@ -35,5 +35,5 @@ with open(filename, 'r') as f:
 result = []
 for stack in stacks:
     result.append(stack[-1])
-result = ''.join(str(x) for x in result)
+result = ''.join(result)
 print(result)
