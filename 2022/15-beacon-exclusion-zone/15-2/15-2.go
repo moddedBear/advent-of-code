@@ -7,6 +7,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	mapset "github.com/deckarep/golang-set/v2"
 )
 
 type sensor struct {
@@ -24,8 +26,13 @@ func newSensor(x int, y int, radius int) *sensor {
 	return &s
 }
 
+type point struct {
+	x int
+	y int
+}
+
 var sensors []*sensor = make([]*sensor, 0)
-var grid map[int][]bool = make(map[int][]bool)
+var beacons mapset.Set[point] = mapset.NewThreadUnsafeSet[point]()
 
 func main() {
 	if len(os.Args) != 3 {
@@ -33,7 +40,7 @@ func main() {
 		return
 	}
 	filename := os.Args[1]
-	checkRow, _ := strconv.Atoi(os.Args[2])
+	searchRange, _ := strconv.Atoi(os.Args[2])
 
 	file, err := os.Open(filename)
 	if err != nil {
@@ -52,18 +59,34 @@ func main() {
 		sensors = append(sensors, newSensor(sensorX, sensorY, radius))
 	}
 
-	for _, s := range sensors {
-		for x := s.x - s.radius; x <= s.x+s.radius; x++ {
-			yRadius := s.radius - int(math.Abs(float64(s.x-x)))
-			for y := s.y - yRadius; y <= s.y+yRadius; y++ {
-
+	for y := 0; y <= searchRange; y++ {
+		for x := 0; x <= searchRange; x++ {
+			if beacons.Contains(point{x, y}) {
+				continue
+			}
+			if result, s := isInRange(x, y); result {
+				x = s.radius - int(math.Abs(float64(s.y-y))) + s.x
+			} else {
+				fmt.Printf("x=%v, y=%v\n", x, y)
+				fmt.Println(x*4000000 + y)
+				return
 			}
 		}
 	}
+
 }
 
 func parseCoords(xStr string, yStr string) (x int, y int) {
 	x, _ = strconv.Atoi(strings.Trim(xStr, "x=,"))
 	y, _ = strconv.Atoi(strings.Trim(yStr, "y=:"))
 	return
+}
+
+func isInRange(x int, y int) (bool, *sensor) {
+	for _, s := range sensors {
+		if int(math.Abs(float64(s.x-x))+math.Abs(float64(s.y-y))) <= s.radius {
+			return true, s
+		}
+	}
+	return false, nil
 }
